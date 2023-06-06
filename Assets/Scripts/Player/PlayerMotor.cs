@@ -112,7 +112,7 @@ public class PlayerMotor : MonoBehaviour
 
 
         //APPLY ROTATION BASED ON where the stick is held relative to the camera
-        //JESUS CHRIST MATT COMMENT YOUR CODE!
+        //JESUS CHRIST MATT COMMENT YOUR CODE! 
         Vector3 InputDir = IT.InputCameraSpace;
         float InputAngleChange = Vector3.SignedAngle(transform.forward, InputDir, Vector3.up);
         float slowValue = Mathf.Clamp((rb.velocity.magnitude - turnRateStartSlow) / (turnRateStopSlow - turnRateStartSlow), 0, 1);
