@@ -16,6 +16,9 @@ public class InputTranslator : MonoBehaviour
     public float xsensitivity;
     //uses its transform as reference field for what inputs should be relative to.
 
+    public Vector3 InputEllipsed;
+
+
     public Vector3 InputCameraSpace;
 
     // Start is called before the first frame update
@@ -38,7 +41,11 @@ public class InputTranslator : MonoBehaviour
 
 
             InputCameraSpace = inputDir;
-            marker.position = inputDir + Vector3.up;
+
+
+
+
+            marker.position = PM.transform.position + inputDir + Vector3.up;
         } 
     }
 

@@ -156,6 +156,7 @@ MonoBehaviour:
   Player: {fileID: 1232546317}
   marker: {fileID: 1669987527}
   xsensitivity: 10
+  InputEllipsed: {x: 0, y: 0, z: 0}
   InputCameraSpace: {x: 0, y: 0, z: 0}
 --- !u!4 &165139189
 Transform:
@@ -724,15 +725,16 @@ MonoBehaviour:
   - {fileID: 309668815}
   groundedRange: 0.11
   groundedStickRange: 0.11
+  PMs: []
   grounded: 0
   Skating: 0
   gravity: 10
+  downForce: 1
   mode: 4
   attacking: 0
-  walkForce: 10
-  pushForbidden: 0
+  walkForce: 5
   pushForce: 2
-  downForce: 1
+  pushForbidden: 0
   pushFriction: 0.2
   glideFriction: 0.05
   railFriction: 0.07
@@ -755,13 +757,12 @@ MonoBehaviour:
   jumpGlideMod: 2
   jumpDuration: 1
   fallSlow: 20
-  walkturnrate: 0.1
+  walkturnrate: 10
   SelfRightingForce: 0
-  deadzone: 0
-  turnRateMax: 0
-  turnRateMin: 0
-  turnRateStartSlow: 0
-  turnRateStopSlow: 0
+  minEllipse: 1
+  maxEllipse: 0.5
+  ellipseStretchEnd: 10
+  ViewLocalInput: {x: 0, y: 0}
 --- !u!54 &1232546319
 Rigidbody:
   m_ObjectHideFlags: 0

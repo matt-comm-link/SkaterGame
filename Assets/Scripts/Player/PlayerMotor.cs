@@ -49,17 +49,17 @@ public class PlayerMotor : MonoBehaviour
     bool enteredJumpFromGlide;
     public bool Skating;
     public float gravity;
+    public float downForce;
 
     public PlayerTransitMode mode;
     public bool attacking;
 
     [SerializeField]
     float walkForce;
+    public float pushForce;
     [SerializeField]
     bool pushForbidden;
 
-    public float pushForce;
-    public float downForce;
     [SerializeField]
     float pushFriction, glideFriction, railFriction, airFriction, walkFriction, topPushSpeed;
     [SerializeField]
@@ -75,12 +75,21 @@ public class PlayerMotor : MonoBehaviour
     [SerializeField]
     float SelfRightingForce; //IDK if I need this
 
+    //r value of the ellipse.  
+    //According to some guy on the internet you can map a circle onto an ellipse with the same area with x = x/r, y = yr or something like that.
+    //I'm a little dubious as to if this is true but 
+    public float minEllipse, maxEllipse;
+    //assume we start stretching at 0
     [SerializeField]
-    float deadzone, turnRateMax, turnRateMin, turnRateStartSlow, turnRateStopSlow;
+    float ellipseStretchEnd;
+
+    [SerializeField]
+    Vector2 ViewLocalInput; //Just to see what the input is doing locally
+
 
     Vector3 velocity;
 
-    RigidbodyConstraints walkConstraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
+    RigidbodyConstraints walkConstraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY |  RigidbodyConstraints.FreezeRotationZ;
     RigidbodyConstraints pushConstraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezePositionX;
     RigidbodyConstraints jumpConstraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
 
@@ -111,21 +120,53 @@ public class PlayerMotor : MonoBehaviour
         Vector3 turnVector = Vector3.zero;
 
 
+        //Input transformed into camera space
+        Vector3 InputDir = IT.InputCameraSpace;
+
+        //camera input relative to the RB direction, ellipse it based on how fast we're going, and then return it to world space.
+        Vector3 LocalInputDir = transform.InverseTransformDirection(InputDir);
+        float ellipseR = Mathf.Lerp(minEllipse, maxEllipse, Mathf.Clamp01(rb.velocity.magnitude / ellipseStretchEnd));
+        Vector3 LocalInputOnEllipsis = new Vector3(LocalInputDir.x * 1 * ellipseR, 0, LocalInputDir.z / ellipseR);
+
+        Vector3 AdjustedInputInWorldspace = transform.TransformDirection(LocalInputOnEllipsis);
+
+
+
+        ViewLocalInput = new Vector2(LocalInputOnEllipsis.x, LocalInputOnEllipsis.z);
+
+        //Get angle between forward and where we're going
+        float InputAngleChange = Vector3.SignedAngle(transform.forward, InputDir, Vector3.up);
+        //limit by ellipse R. TBH I'm just making this up as I go along.
+        float appliedInput = Mathf.Sign(InputAngleChange) * InputAngleChange * ellipseR;
+
+        if (mode > PlayerTransitMode.Recover && mode < PlayerTransitMode.Rail)
+        {
+            //go forth!
+            rb.AddForce(new Vector3(AdjustedInputInWorldspace.x, 0, AdjustedInputInWorldspace.z) * walkForce, ForceMode.Force);
+
+            transform.rotation *= Quaternion.AngleAxis(LocalInputOnEllipsis.x * walkturnrate, transform.up);
+
+            //transform.rotation *= Quaternion.AngleAxis(appliedInput * Time.fixedDeltaTime, transform.up);
+
+        }
+
         //APPLY ROTATION BASED ON where the stick is held relative to the camera
         //JESUS CHRIST MATT COMMENT YOUR CODE! 
-        Vector3 InputDir = IT.InputCameraSpace;
+        #region old code
+        //I DON'T KNOW WHAT I WAS GUNNING FOR HERE BUT I REMEMBER GETTING STUCK SO LET'S TRY SOMETHING NEW
+        /*
         float InputAngleChange = Vector3.SignedAngle(transform.forward, InputDir, Vector3.up);
         float slowValue = Mathf.Clamp((rb.velocity.magnitude - turnRateStartSlow) / (turnRateStopSlow - turnRateStartSlow), 0, 1);
         float upperBounds = Mathf.Lerp(turnRateMax, turnRateMin, slowValue);
         float pull = InputDir.magnitude;
-
         float appliedInput = Mathf.Sign(InputAngleChange) * Mathf.Clamp(Mathf.Abs(InputAngleChange) * pull, 0, upperBounds);
-
         if(mode > PlayerTransitMode.Recover && mode < PlayerTransitMode.Rail) 
         {
             transform.rotation *= Quaternion.AngleAxis(appliedInput * Time.fixedDeltaTime, transform.up);
 
         }
+        */
+        #endregion
 
 
         switch (mode) 
@@ -163,13 +204,12 @@ public class PlayerMotor : MonoBehaviour
                 //cut velocity by walk friction
                 friction = (Time.fixedDeltaTime * walkFriction);
                 //press into ground
-                rb.velocity += (-Vector3.up * downForce * Time.deltaTime);
+                rb.AddForce(-transform.up * downForce, ForceMode.Force);
                 break;
             //Movement, 3rd person character movement with untethered orbit camera. 
             case PlayerTransitMode.Walking:
                 //Move around in 3D space based on the inputs
                 //rb.AddRelativeForce(moveVector * walkForce, ForceMode.Force);
-                rb.velocity += Vector3.forward * InputDir.y * walkForce * Time.deltaTime;
 
 
                 //transform.rotation = Quaternion.Euler(0, CM.internalYaw, 0);
@@ -179,7 +219,7 @@ public class PlayerMotor : MonoBehaviour
                 friction = (Time.fixedDeltaTime * walkFriction);
 
                 //press into ground
-                rb.velocity += (-Vector3.up * downForce * Time.deltaTime);
+                rb.AddForce(-transform.up * downForce, ForceMode.Force);
                 break;
             //Movement, 3rd person inertia based movement with push velocity increases and push speed limit
             case PlayerTransitMode.Pushing:
@@ -195,7 +235,7 @@ public class PlayerMotor : MonoBehaviour
                 friction = (Time.fixedDeltaTime * pushFriction);
 
                 //press into ground
-                rb.velocity += (-Vector3.up * downForce * Time.deltaTime);
+                rb.AddForce(-transform.up * downForce, ForceMode.Force);
 
                 break;
             //Movement, 3rd person inertia based movement with push levels of friction and increased turning rates
@@ -208,7 +248,7 @@ public class PlayerMotor : MonoBehaviour
                 friction = (Time.fixedDeltaTime * pushFriction);
 
                 //press into ground
-                rb.velocity += (-Vector3.up * downForce * Time.deltaTime);
+                rb.AddForce(-transform.up * downForce, ForceMode.Force);
                 break;
             //Movement, 3rd person inertia based movement with glide levels of friction & reduced ability to turn, increased jump force (in jump start code)
             case PlayerTransitMode.Glide:
@@ -220,7 +260,7 @@ public class PlayerMotor : MonoBehaviour
                 friction = (Time.fixedDeltaTime * glideFriction);
 
                 //press into ground
-                rb.velocity += (-Vector3.up * downForce * Time.deltaTime);
+                rb.AddForce(-transform.up * downForce, ForceMode.Force);
 
                 break;
             //Movement, 3rd person inertia based movement midair with jump levels of friction & limited ability to turn
